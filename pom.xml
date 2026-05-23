@@ -122,16 +122,34 @@
         </dependencies>
     </dependencyManagement>
 
-    <distributionManagement>
-        <repository>
-            <id>nexus-releases</id>
-            <url>${NEXUS_URL}/repository/maven-releases/</url>
-        </repository>
-        <snapshotRepository>
-            <id>nexus-snapshots</id>
-            <url>${NEXUS_URL}/repository/maven-snapshots/</url>
-        </snapshotRepository>
-    </distributionManagement>
+    <profiles>
+        <profile>
+            <id>local</id>
+            <distributionManagement>
+                <repository>
+                    <id>nexus-releases</id>
+                    <url>http://nexus:8081/repository/maven-releases/</url>
+                </repository>
+                <snapshotRepository>
+                    <id>nexus-snapshots</id>
+                    <url>http://nexus:8081/repository/maven-snapshots/</url>
+                </snapshotRepository>
+            </distributionManagement>
+        </profile>
+        <profile>
+            <id>prod</id>
+            <distributionManagement>
+                <repository>
+                    <id>nexus-releases</id>
+                    <url>${NEXUS_URL}/repository/maven-releases/</url>
+                </repository>
+                <snapshotRepository>
+                    <id>nexus-snapshots</id>
+                    <url>${NEXUS_URL}/repository/maven-snapshots/</url>
+                </snapshotRepository>
+            </distributionManagement>
+        </profile>
+    </profiles>
 
     <build>
         <pluginManagement>
