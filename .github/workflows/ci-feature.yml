@@ -1,0 +1,55 @@
+name: CI — Feature Branch
+
+on:
+  push:
+    branches:
+      - 'feature/**'
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened]
+
+jobs:
+  build-and-test:
+    name: Build, Test & Coverage Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Compile project
+        run: mvn compile --no-transfer-progress
+
+      - name: Run tests and generate JaCoCo report
+        run: mvn verify --no-transfer-progress
+
+      - name: Check coverage threshold (warning only)
+        run: |
+          COVERAGE=$(grep -oP 'missed="\K[0-9]+(?=" covered="[0-9]+" type="LINE")' target/site/jacoco/jacoco.xml | head -1 || echo "0")
+          COVERED=$(grep -oP 'covered="\K[0-9]+(?=" type="LINE")' target/site/jacoco/jacoco.xml | head -1 || echo "0")
+          TOTAL=$((COVERAGE + COVERED))
+          if [ "$TOTAL" -gt 0 ]; then
+            PCT=$((COVERED * 100 / TOTAL))
+            echo "Line coverage: ${PCT}%"
+            if [ "$PCT" -lt 70 ]; then
+              echo "⚠️ Coverage ${PCT}% is below 70% threshold"
+            else
+              echo "✅ Coverage ${PCT}% meets threshold"
+            fi
+          fi
+
+      - name: Upload JaCoCo report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: jacoco-report-${{ github.sha }}
+          path: target/site/jacoco/
+          retention-days: 7
