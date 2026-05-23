@@ -57,12 +57,12 @@ jobs:
           echo "✅ JARs found:"
           echo "$JARS"
 
-      - name: Upload JaCoCo report
+      - name: Upload JaCoCo reports
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: jacoco-report-main-${{ github.sha }}
-          path: target/site/jacoco/
+          path: '**/target/site/jacoco/'
           retention-days: 30
 
       - name: Workflow summary
