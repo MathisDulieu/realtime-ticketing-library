@@ -31,21 +31,28 @@ jobs:
 
       - name: Check coverage threshold (warning only)
         run: |
-          for jacoco_xml in $(find . -path "*/target/site/jacoco/jacoco.xml"); do
-            MODULE=$(echo $jacoco_xml | cut -d'/' -f2)
-            COVERAGE=$(grep -oP 'missed="\K[0-9]+(?=" covered="[0-9]+" type="LINE")' $jacoco_xml | head -1 || echo "0")
-            COVERED=$(grep -oP 'covered="\K[0-9]+(?=" type="LINE")' $jacoco_xml | head -1 || echo "0")
-            TOTAL=$((COVERAGE + COVERED))
-            if [ "$TOTAL" -gt 0 ]; then
-              PCT=$((COVERED * 100 / TOTAL))
-              echo "[$MODULE] Line coverage: ${PCT}%"
-              if [ "$PCT" -lt 70 ]; then
-                echo "⚠️ [$MODULE] Coverage ${PCT}% is below 70% threshold"
+          REPORTS=$(find . -name "jacoco.xml" -path "*/site/jacoco/*")
+          if [ -z "$REPORTS" ]; then
+            echo "⚠️ No JaCoCo reports found"
+          else
+            for jacoco_xml in $REPORTS; do
+              MODULE=$(echo $jacoco_xml | cut -d'/' -f2)
+              COVERAGE=$(grep -oP 'missed="\K[0-9]+(?=" covered="[0-9]+" type="LINE")' $jacoco_xml | head -1 || echo "0")
+              COVERED=$(grep -oP 'covered="\K[0-9]+(?=" type="LINE")' $jacoco_xml | head -1 || echo "0")
+              TOTAL=$((COVERAGE + COVERED))
+              if [ "$TOTAL" -gt 0 ]; then
+                PCT=$((COVERED * 100 / TOTAL))
+                echo "[$MODULE] Line coverage: ${PCT}%"
+                if [ "$PCT" -lt 70 ]; then
+                  echo "⚠️ [$MODULE] Coverage ${PCT}% is below 70% threshold"
+                else
+                  echo "✅ [$MODULE] Coverage ${PCT}% meets threshold"
+                fi
               else
-                echo "✅ [$MODULE] Coverage ${PCT}% meets threshold"
+                echo "⚠️ [$MODULE] No coverage data found"
               fi
-            fi
-          done
+            done
+          fi
 
       - name: Verify JAR presence
         run: |
@@ -68,7 +75,7 @@ jobs:
       - name: Workflow summary
         if: always()
         run: |
-          echo "## Main CI — Validation OK" >> $GITHUB_STEP_SUMMARY
+          echo "## Main CI - Validation OK" >> $GITHUB_STEP_SUMMARY
           echo "- Branch: main" >> $GITHUB_STEP_SUMMARY
           echo "- Commit: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
           echo "- Tests: OK" >> $GITHUB_STEP_SUMMARY
