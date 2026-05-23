@@ -50,7 +50,12 @@ jobs:
       - name: Workflow summary
         if: always()
         run: |
-          echo "## Main CI - Validation OK" >> $GITHUB_STEP_SUMMARY
+          echo "## Main CI - Validation" >> $GITHUB_STEP_SUMMARY
           echo "- Branch: main" >> $GITHUB_STEP_SUMMARY
           echo "- Commit: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Tests: OK" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "- Tests: OK" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- Tests: FAILED" >> $GITHUB_STEP_SUMMARY
+          fi
