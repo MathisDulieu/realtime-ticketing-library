@@ -39,9 +39,9 @@ jobs:
           else
             for jacoco_xml in $REPORTS; do
               MODULE=$(echo $jacoco_xml | cut -d'/' -f2)
-              COVERAGE=$(grep -oP 'missed="\K[0-9]+(?=" covered="[0-9]+" type="LINE")' $jacoco_xml | head -1 || echo "0")
-              COVERED=$(grep -oP 'covered="\K[0-9]+(?=" type="LINE")' $jacoco_xml | head -1 || echo "0")
-              TOTAL=$((COVERAGE + COVERED))
+              MISSED=$(awk -F'"' '/<counter type="LINE"/{missed=$2} END{print missed+0}' $jacoco_xml)
+              COVERED=$(awk -F'"' '/<counter type="LINE"/{covered=$4} END{print covered+0}' $jacoco_xml)
+              TOTAL=$((MISSED + COVERED))
               if [ "$TOTAL" -gt 0 ]; then
                 PCT=$((COVERED * 100 / TOTAL))
                 echo "[$MODULE] Line coverage: ${PCT}%"
