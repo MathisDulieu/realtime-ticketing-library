@@ -28,6 +28,7 @@ public class GenericTestKafkaConsumer<T> {
                 log.debug("Record received on topic '{}' with key '{}'", record.topic(), record.key());
                 return record;
             }
+            records.put(record);
         }
     }
 
@@ -43,6 +44,8 @@ public class GenericTestKafkaConsumer<T> {
             if (topic.equals(record.topic())) {
                 log.debug("Record {}/{} received on topic '{}' with key '{}'", result.size() + 1, count, record.topic(), record.key());
                 result.add(record);
+            } else {
+                records.put(record);
             }
         }
 
@@ -55,8 +58,22 @@ public class GenericTestKafkaConsumer<T> {
         records.removeIf(record -> topic.equals(record.topic()));
     }
 
-    public boolean hasNoRecords(final String topic) {
-        return records.stream().noneMatch(record -> topic.equals(record.topic()));
+    public void assertNoRecordReceived(final String topic, final long timeoutSeconds) throws InterruptedException {
+        long deadline = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(timeoutSeconds);
+
+        while (true) {
+            long remaining = deadline - System.currentTimeMillis();
+            if (remaining <= 0) {
+                log.debug("No record received on topic '{}' within {} seconds (as expected)", topic, timeoutSeconds);
+                return;
+            }
+            ConsumerRecord<String, T> record = records.poll(remaining, TimeUnit.MILLISECONDS);
+            if (record == null) return;
+            if (topic.equals(record.topic())) {
+                throw new AssertionError("Expected no record on topic '" + topic + "' but got one with key '" + record.key() + "'");
+            }
+            records.put(record);
+        }
     }
 
     public int recordCount(final String topic) {

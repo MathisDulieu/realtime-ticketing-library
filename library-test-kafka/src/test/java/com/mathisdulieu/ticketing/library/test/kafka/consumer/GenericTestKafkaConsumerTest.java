@@ -77,8 +77,7 @@ class GenericTestKafkaConsumerTest {
         consumer.clearRecordsFromTopic("test-topic-1");
 
         // Assert
-        boolean hasNoRecords = consumer.hasNoRecords("test-topic-1");
-        assertThat(hasNoRecords).isTrue();
+        consumer.assertNoRecordReceived("test-topic-1", 3);
 
         ConsumerRecord<String, DummyEntity> polledRecord = consumer.pollRecord("test-topic-2", 5);
         assertThat(polledRecord.topic()).isEqualTo("test-topic-2");
@@ -87,29 +86,25 @@ class GenericTestKafkaConsumerTest {
     }
 
     @Test
-    void shouldReturnTrue_whenTopicHasNoRecord() {
+    void shouldAssertNoRecordReceived_whenTopicHasNoRecordAfter5Seconds() throws InterruptedException {
         // Arrange
         DummyEntity dummyEntity = new DummyEntity("id", "name");
         consumer.records.add(new ConsumerRecord<>("other-topic", 0, 0, "test-key", dummyEntity));
 
-        // Act
-        boolean hasNoRecords = consumer.hasNoRecords("test-topic");
-
-        // Assert
-        assertThat(hasNoRecords).isTrue();
+        // Act & Assert
+        consumer.assertNoRecordReceived("test-topic", 5);
     }
 
     @Test
-    void shouldReturnFalse_whenTopicHasRecord() {
+    void shouldThrowAssertionError_whenTopicHasRecord() {
         // Arrange
         DummyEntity dummyEntity = new DummyEntity("id", "name");
         consumer.records.add(new ConsumerRecord<>("test-topic", 0, 0, "test-key", dummyEntity));
 
-        // Act
-        boolean hasNoRecords = consumer.hasNoRecords("test-topic");
-
-        // Assert
-        assertThat(hasNoRecords).isFalse();
+        // Act & Assert
+        assertThatThrownBy(() -> consumer.assertNoRecordReceived("test-topic", 2))
+            .isInstanceOf(AssertionError.class)
+            .hasMessage("Expected no record on topic 'test-topic' but got one with key 'test-key'");
     }
 
     @ParameterizedTest
