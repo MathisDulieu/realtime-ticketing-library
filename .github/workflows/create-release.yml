@@ -3,19 +3,14 @@ name: Create Release
 on:
   workflow_dispatch:
     inputs:
-      tag:
-        description: 'Release tag (e.g. 1.0.0) — created automatically if it does not exist'
+      bump:
+        description: 'Version bump type'
         required: true
-        type: string
-      title:
-        description: 'Release title'
-        required: true
-        type: string
-      branch:
-        description: 'Branch to create the release from'
-        required: true
-        default: 'main'
-        type: string
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
 
 permissions:
   contents: write
@@ -29,20 +24,37 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.inputs.branch }}
+          ref: main
           fetch-depth: 0
 
-      - name: Create tag if it does not exist
+      - name: Compute next version
+        id: version
         run: |
-          if git tag | grep -q "^${{ github.event.inputs.tag }}$"; then
-            echo "✅ Tag ${{ github.event.inputs.tag }} already exists."
-          else
-            git config user.name "github-actions"
-            git config user.email "github-actions@github.com"
-            git tag ${{ github.event.inputs.tag }}
-            git push origin ${{ github.event.inputs.tag }}
-            echo "✅ Tag ${{ github.event.inputs.tag }} created."
+          latest=$(git tag --sort=-v:refname | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | head -n1)
+          if [ -z "$latest" ]; then
+            latest="0.0.0"
           fi
+          major=$(echo $latest | cut -d. -f1)
+          minor=$(echo $latest | cut -d. -f2)
+          patch=$(echo $latest | cut -d. -f3)
+
+          case "${{ github.event.inputs.bump }}" in
+            major) major=$((major+1)); minor=0; patch=0 ;;
+            minor) minor=$((minor+1)); patch=0 ;;
+            patch) patch=$((patch+1)) ;;
+          esac
+
+          next="$major.$minor.$patch"
+          echo "version=$next" >> $GITHUB_OUTPUT
+          echo "title=Release $next" >> $GITHUB_OUTPUT
+
+      - name: Create tag
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git tag ${{ steps.version.outputs.version }}
+          git push origin ${{ steps.version.outputs.version }}
+          echo "✅ Tag ${{ steps.version.outputs.version }} created."
 
       - name: Create GitHub Release with auto-generated notes
         uses: actions/github-script@v7
@@ -51,20 +63,20 @@ jobs:
             const { data: release } = await github.rest.repos.createRelease({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              tag_name: '${{ github.event.inputs.tag }}',
-              name: '${{ github.event.inputs.title }}',
+              tag_name: '${{ steps.version.outputs.version }}',
+              name: '${{ steps.version.outputs.title }}',
               generate_release_notes: true,
               draft: false,
               prerelease: false,
-              target_commitish: '${{ github.event.inputs.branch }}'
+              target_commitish: 'main'
             });
             console.log(`✅ Release created: ${release.html_url}`);
 
       - name: Release summary
         run: |
           echo "## Release Created" >> $GITHUB_STEP_SUMMARY
-          echo "- Tag: ${{ github.event.inputs.tag }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Title: ${{ github.event.inputs.title }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Branch: ${{ github.event.inputs.branch }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Tag: ${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Title: ${{ steps.version.outputs.title }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Bump: ${{ github.event.inputs.bump }}" >> $GITHUB_STEP_SUMMARY
           echo "- Created by: ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
           echo "- Date: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
