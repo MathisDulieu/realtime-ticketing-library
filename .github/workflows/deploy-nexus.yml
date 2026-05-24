@@ -80,12 +80,17 @@ jobs:
                 <username>${{ secrets.NEXUS_USERNAME }}</username>
                 <password>${{ secrets.NEXUS_PASSWORD }}</password>
               </server>
+              <server>
+                <id>nexus-snapshots</id>
+                <username>${{ secrets.NEXUS_USERNAME }}</username>
+                <password>${{ secrets.NEXUS_PASSWORD }}</password>
+              </server>
             </servers>
           </settings>
           EOF
 
       - name: Deploy to Nexus
-        run: mvn deploy --no-transfer-progress -DskipTests
+        run: mvn deploy -Pprod --no-transfer-progress -DskipTests
         env:
           NEXUS_URL: ${{ secrets.NEXUS_URL }}
 
