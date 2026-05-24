@@ -1,4 +1,4 @@
-name: Deploy — Nexus (Manual)
+name: Deploy Nexus
 
 on:
   workflow_dispatch:
@@ -26,11 +26,18 @@ jobs:
           fi
           echo "✅ Confirmation received."
 
-      - name: Checkout release tag
+      - name: Checkout main
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.inputs.release }}
+          ref: main
           fetch-depth: 0
+
+      - name: List available tags
+        run: |
+          echo "## Available tags" >> $GITHUB_STEP_SUMMARY
+          git tag --sort=-v:refname | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | head -10 | while read tag; do
+            echo "- $tag" >> $GITHUB_STEP_SUMMARY
+          done
 
       - name: Verify tag exists
         run: |
@@ -46,6 +53,12 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
           cache: maven
+
+      - name: Checkout release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.release }}
+          fetch-depth: 0
 
       - name: Run tests before deployment
         run: mvn verify --no-transfer-progress
