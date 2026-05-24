@@ -17,6 +17,9 @@ on:
         default: 'main'
         type: string
 
+permissions:
+  contents: write
+
 jobs:
   create-release:
     name: Create GitHub Release
