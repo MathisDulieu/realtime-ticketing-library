@@ -141,11 +141,11 @@
             <distributionManagement>
                 <repository>
                     <id>nexus-releases</id>
-                    <url>${NEXUS_URL}/repository/maven-releases/</url>
+                    <url>${env.NEXUS_URL}/repository/maven-releases/</url>
                 </repository>
                 <snapshotRepository>
                     <id>nexus-snapshots</id>
-                    <url>${NEXUS_URL}/repository/maven-snapshots/</url>
+                    <url>${env.NEXUS_URL}/repository/maven-snapshots/</url>
                 </snapshotRepository>
             </distributionManagement>
         </profile>
