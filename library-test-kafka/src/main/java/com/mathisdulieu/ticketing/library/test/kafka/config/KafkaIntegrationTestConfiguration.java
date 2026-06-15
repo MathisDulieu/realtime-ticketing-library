@@ -11,14 +11,19 @@ import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.kafka.KafkaProperties;
+import org.springframework.boot.context.properties.bind.Bindable;
+import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
@@ -26,17 +31,15 @@ import java.util.UUID;
 @Configuration
 public class KafkaIntegrationTestConfiguration {
 
-    @Bean
-    public KafkaTemplate<String, String> kafkaTemplate(Environment environment) {
+    @Bean("kafkaIntegrationTestTemplate")
+    public KafkaTemplate<String, String> kafkaIntegrationTestTemplate(Environment environment) {
         return new KafkaTemplate<>(
             new DefaultKafkaProducerFactory<>(
                 Map.of(
                     ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,
                     environment.getProperty("spring.embedded.kafka.brokers"),
-
                     ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
                     StringSerializer.class,
-
                     ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
                     StringSerializer.class
                 )
@@ -77,14 +80,34 @@ public class KafkaIntegrationTestConfiguration {
     }
 
     @Bean
-    public KafkaIntegrationTestClient kafkaIntegrationTestClient(KafkaTemplate<String, String> kafkaTemplate, KafkaTopicBufferRegistry registry, KafkaJsonMapper mapper) {
+    public KafkaIntegrationTestClient kafkaIntegrationTestClient(
+        @Qualifier("kafkaIntegrationTestTemplate") KafkaTemplate<String, String> kafkaTemplate,
+        KafkaTopicBufferRegistry registry,
+        KafkaJsonMapper mapper
+    ) {
         return new DefaultKafkaIntegrationTestClient(kafkaTemplate, registry, mapper);
     }
 
     @Bean
-    public KafkaTestConsumer kafkaTestConsumer(KafkaConsumer<String, String> consumer, KafkaTopicBufferRegistry registry, KafkaProperties properties) {
-        Collection<String> topics = properties.getConsumer().getProperties().keySet();
+    public KafkaTestConsumer kafkaTestConsumer(KafkaConsumer<String, String> consumer, KafkaTopicBufferRegistry registry, Environment environment) {
+        Binder binder = Binder.get(environment);
 
-        return new KafkaTestConsumer(consumer, registry, topics);
+        List<String> topics = binder.bind(
+            "library.test.kafka.topics",
+            Bindable.listOf(String.class)
+        ).orElse(List.of());
+
+        if (topics.isEmpty()) {
+            throw new IllegalStateException("No Kafka test topics found. Configure library.test.kafka.topics.");
+        }
+
+        return new KafkaTestConsumer(
+            consumer,
+            registry,
+            topics.stream()
+                .map(String::trim)
+                .filter(topic -> !topic.isBlank())
+                .toList()
+        );
     }
 }
